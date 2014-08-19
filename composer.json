@@ -1,0 +1,23 @@
+{
+    "name": "deviservi/nusoap",
+    "type": "library",
+    "description": "NuSOAP PHP library re-packaged for Packagist/Composer",
+    "keywords": ["soap","nusoap"],
+    "license": "LGPLv2",
+    "authors": [
+        {
+            "name": "Dietrich Ayala",
+            "homepage": "http://sourceforge.net/u/dietricha/profile/"
+        },
+        {
+            "name": "Scott Nichol",
+            "homepage": "http://sourceforge.net/u/snichol/profile/"
+        }
+        ],
+    "require": {
+        "php": ">=5.3.0"
+    },
+    "autoload": {
+        "classmap": ["lib/"]
+    }
+}
