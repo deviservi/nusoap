@@ -324,7 +324,10 @@ class nusoap_client extends nusoap_base  {
 				$this->fault = true;
 				foreach($return as $k => $v){
 					$this->$k = $v;
-					$this->debug("$k = $v<br>");
+					if(is_scalar($v))
+						$this->debug("$k = $v<br>");
+					else
+						$this->debug("$k = ".print_r($v, true)."<br>");
 				}
 				return $return;
 			} elseif ($style == 'document') {
