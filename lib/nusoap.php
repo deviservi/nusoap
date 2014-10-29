@@ -2493,7 +2493,7 @@ class soap_transport_http extends nusoap_base {
 				if (isset($this->certRequest['verifyhost'])) {
 					$this->setCurlOption(CURLOPT_SSL_VERIFYHOST, $this->certRequest['verifyhost']);
 				} else {
-					$this->setCurlOption(CURLOPT_SSL_VERIFYHOST, 1);
+					$this->setCurlOption(CURLOPT_SSL_VERIFYHOST, 2);
 				}
 				if (isset($this->certRequest['sslcertfile'])) {
 					$this->setCurlOption(CURLOPT_SSLCERT, $this->certRequest['sslcertfile']);
@@ -7487,7 +7487,10 @@ class nusoap_client extends nusoap_base  {
 				$this->fault = true;
 				foreach($return as $k => $v){
 					$this->$k = $v;
-					$this->debug("$k = $v<br>");
+					if(is_scalar($v))
+						$this->debug("$k = $v<br>");
+					else
+						$this->debug("$k = ".print_r($v, true)."<br/>");
 				}
 				return $return;
 			} elseif ($style == 'document') {
