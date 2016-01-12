@@ -1649,7 +1649,11 @@ class wsdl extends nusoap_base {
 				if ($forceType) {
 					$xml = "<$name$elementNS xsi:type=\"" . $this->getPrefixFromNamespace($ns) . ":$uqType\">$value</$name>";
 				} else {
-					$xml = "<$name$elementNS>$value</$name>";
+					if(is_null($value)) {
+						$xml = "<$name$elementNS xsi:nil=\"true\"/>";
+					} else {
+						$xml = "<$name$elementNS>$value</$name>";
+					}
 				}
 			} else {
 				$xml = "<$name$elementNS xsi:type=\"" . $this->getPrefixFromNamespace($ns) . ":$uqType\"$encodingStyle>$value</$name>";
