@@ -9,7 +9,7 @@
 *
 * @author   Dietrich Ayala <dietrich@ganx4.com>
 * @author   Scott Nichol <snichol@users.sourceforge.net>
-* @version  $Id: class.soap_transport_http.php,v 1.68 2010/04/26 20:15:08 snichol Exp $
+* @version  $Id: class.soap_transport_http.php,v 1.73 2011/01/14 18:34:16 snichol Exp $
 * @access public
 */
 class soap_transport_http extends nusoap_base {
@@ -159,9 +159,9 @@ class soap_transport_http extends nusoap_base {
 	* @access	private
 	*/
 	function io_method() {
-		if ($this->use_curl || ($this->scheme == 'https') || ($this->scheme == 'http' && $this->authtype == 'ntlm') || ($this->scheme == 'http' && is_array($this->proxy) && $this->proxy['authtype'] == 'ntlm'))
+		if ($this->use_curl || ($this->scheme == 'https') || ($this->scheme == 'http' && ($this->authtype == 'ntlm' || $this->authtype == 'any')) || ($this->scheme == 'http' && is_array($this->proxy) && ($this->proxy['authtype'] == 'ntlm' || $this->proxy['authtype'] == 'any')))
 			return 'curl';
-		if (($this->scheme == 'http' || $this->scheme == 'ssl') && $this->authtype != 'ntlm' && (!is_array($this->proxy) || $this->proxy['authtype'] != 'ntlm'))
+		if (($this->scheme == 'http' || $this->scheme == 'ssl') && $this->authtype != 'ntlm' && $this->authtype != 'any' && (!is_array($this->proxy) || ($this->proxy['authtype'] != 'ntlm' && $this->proxy['authtype'] != 'any')))
 			return 'socket';
 		return 'unknown';
 	}
@@ -215,9 +215,9 @@ class soap_transport_http extends nusoap_base {
 
 		// open socket
 		if($connection_timeout > 0){
-			$this->fp = @fsockopen( $host, $this->port, $this->errno, $this->error_str, $connection_timeout);
+			$this->fp = @fsockopen( $host, $port, $this->errno, $this->error_str, $connection_timeout);
 		} else {
-			$this->fp = @fsockopen( $host, $this->port, $this->errno, $this->error_str);
+			$this->fp = @fsockopen( $host, $port, $this->errno, $this->error_str);
 		}
 		
 		// test pointer
@@ -270,6 +270,10 @@ class soap_transport_http extends nusoap_base {
 			$CURLAUTH_NTLM = CURLAUTH_NTLM;
 		else
 			$CURLAUTH_NTLM = 8;
+		if (defined('CURLAUTH_ANY'))
+			$CURLAUTH_NTLM = CURLAUTH_ANY;
+		else
+			$CURLAUTH_NTLM = -17;
 
 		$this->debug('connect using cURL');
 		// init CURL
@@ -372,6 +376,10 @@ class soap_transport_http extends nusoap_base {
 				$this->debug('set cURL for NTLM authentication');
 				$this->setCurlOption($CURLOPT_HTTPAUTH, $CURLAUTH_NTLM);
 			}
+			if ($this->authtype == 'any') {
+				$this->debug('set cURL for ANY authentication');
+				$this->setCurlOption($CURLOPT_HTTPAUTH, $CURLAUTH_ANY);
+			}
 		}
 		if (is_array($this->proxy)) {
 			$this->debug('set cURL proxy options');
@@ -386,8 +394,14 @@ class soap_transport_http extends nusoap_base {
 				if ($this->proxy['authtype'] == 'basic') {
 					$this->setCurlOption($CURLOPT_PROXYAUTH, $CURLAUTH_BASIC);
 				}
+				if ($this->proxy['authtype'] == 'digest') {
+					$this->setCurlOption($CURLOPT_PROXYAUTH, $CURLAUTH_DIGEST);
+				}
 				if ($this->proxy['authtype'] == 'ntlm') {
 					$this->setCurlOption($CURLOPT_PROXYAUTH, $CURLAUTH_NTLM);
+				}
+				if ($this->proxy['authtype'] == 'any') {
+					$this->setCurlOption($CURLOPT_PROXYAUTH, $CURLAUTH_ANY);
 				}
 			}
 		}
@@ -460,7 +474,7 @@ class soap_transport_http extends nusoap_base {
 	*
 	* @param    string $username
 	* @param    string $password
-	* @param	string $authtype (basic|digest|certificate|ntlm)
+	* @param	string $authtype (basic|digest|certificate|ntlm|any)
 	* @param	array $digestRequest (keys must be nonce, nc, realm, qop)
 	* @param	array $certRequest (keys must be cainfofile (optional), sslcertfile, sslkeyfile, passphrase, certpassword (optional), verifypeer (optional), verifyhost (optional): see corresponding options in cURL docs)
 	* @access   public
@@ -526,6 +540,9 @@ class soap_transport_http extends nusoap_base {
 		} elseif ($authtype == 'ntlm') {
 			// do nothing
 			$this->debug('Authorization header not set for ntlm');
+		} elseif ($authtype == 'any') {
+			// do nothing
+			$this->debug('Authorization header not set for any');
 		}
 		$this->username = $username;
 		$this->password = $password;
@@ -570,7 +587,7 @@ class soap_transport_http extends nusoap_base {
 	* @param    string $proxyport
 	* @param	string $proxyusername
 	* @param	string $proxypassword
-	* @param	string $proxyauthtype (basic|ntlm)
+	* @param	string $proxyauthtype (basic|digest|ntlm|any)
 	* @access   public
 	*/
 	function setProxy($proxyhost, $proxyport, $proxyusername = '', $proxypassword = '', $proxyauthtype = 'basic') {
@@ -609,7 +626,9 @@ class soap_transport_http extends nusoap_base {
 								'HTTP/1.1 302',
 								'HTTP/1.0 401',
 								'HTTP/1.1 401',
-								'HTTP/1.0 200 Connection established');
+								'HTTP/1.0 200 Connection established',
+								'HTTP/1.1 200 Connection established',
+								'HTTP/1.1 307');
 		foreach ($skipHeaders as $hd) {
 			$prefix = substr($data, 0, strlen($hd));
 			if ($prefix == $hd) return true;
@@ -1090,8 +1109,13 @@ class soap_transport_http extends nusoap_base {
 			($http_status >= 400 && $http_status <= 417) ||
 			($http_status >= 501 && $http_status <= 505)
 		   ) {
-			$this->setError("Unsupported HTTP response status $http_status $http_reason (soapclient->response has contents of the response)");
-			return false;
+		   	if ($http_status == 403 && isset($this->incoming_headers['content-type']) && preg_match('/^text\/xml/i', $this->incoming_headers['content-type'])) {
+		   		// Amazon returns some faults with status 403, which is not per-SOAP 1.1 (http://www.w3.org/TR/2000/NOTE-SOAP-20000508/#_Toc478383529)
+		   		$this->debug('HTTP response status $http_status $http_reason with Content-Type: ' . $this->incoming_headers['content-type'] . ' is not per SOAP 1.1 spec, but try to process anyway');
+		   	} else {
+				$this->setError("Unsupported HTTP response status $http_status $http_reason (soapclient->response has contents of the response)");
+				return false;
+			}
 		}
 
 		// decode content-encoding

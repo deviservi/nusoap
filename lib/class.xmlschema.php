@@ -9,7 +9,7 @@
 *
 * @author   Dietrich Ayala <dietrich@ganx4.com>
 * @author   Scott Nichol <snichol@users.sourceforge.net>
-* @version  $Id: class.xmlschema.php,v 1.53 2010/04/26 20:15:08 snichol Exp $
+* @version  $Id: class.xmlschema.php,v 1.57 2011/01/15 15:58:31 snichol Exp $
 * @access   public
 */
 class nusoap_xmlschema extends nusoap_base  {
@@ -239,6 +239,15 @@ class nusoap_xmlschema extends nusoap_base  {
 				//	$this->complexTypes[$this->currentComplexType]['phpType'] = 'struct';
 				//}
 			break;
+			case 'any':
+				if ($this->currentComplexType) {
+					$this->xdebug("add any pseudo-element to complexType $this->currentComplexType");
+					$attrs['type'] = '!any';
+					$this->complexTypes[$this->currentComplexType]['elements']['any'] = $attrs;
+				} else {
+					$this->xdebug("do nothing with any outside of complexType");
+				}
+			break;
 			case 'attribute':	// complexType attribute
             	//$this->xdebug("parsing attribute $attrs[name] $attrs[ref] of value: ".$attrs['http://schemas.xmlsoap.org/wsdl/:arrayType']);
             	$this->xdebug("parsing attribute:");
@@ -377,6 +386,12 @@ class nusoap_xmlschema extends nusoap_base  {
 					$this->xdebug("processing element as ref to ".$attrs['ref']);
 					$this->currentElement = "ref to ".$attrs['ref'];
 					$ename = $this->getLocalPart($attrs['ref']);
+					$ns = $this->getPrefix($attrs['ref']);
+					if (! $ns) {
+						$ns = $this->schemaTargetNamespace;
+						$this->xdebug("defaulted ref namespace to $ns");
+					}
+					$attrs['ref'] = $ns . ':' . $ename;
 				} else {
 					$type = $this->CreateTypeName($this->currentComplexType . '_' . $attrs['name']);
 					$this->xdebug("processing untyped element " . $attrs['name'] . ' type ' . $type);
@@ -574,7 +589,11 @@ class nusoap_xmlschema extends nusoap_base  {
 					if(isset($eParts['ref'])){
 						$contentStr .= "   <$schemaPrefix:element ref=\"$element\"/>\n";
 					} else {
-						$contentStr .= "   <$schemaPrefix:element name=\"$element\" type=\"" . $this->contractQName($eParts['type']) . "\"";
+						if ($element == 'any') {
+							$contentStr .= "   <xsd:any";
+						} else {
+							$contentStr .= "   <$schemaPrefix:element name=\"$element\" type=\"" . $this->contractQName($eParts['type']) . "\"";
+						}
 						foreach ($eParts as $aName => $aValue) {
 							// handle, e.g., abstract, default, form, minOccurs, maxOccurs, nillable
 							if ($aName != 'name' && $aName != 'type') {

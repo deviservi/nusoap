@@ -20,7 +20,7 @@
 *
 * @author   Dietrich Ayala <dietrich@ganx4.com>
 * @author   Scott Nichol <snichol@users.sourceforge.net>
-* @version  $Id: class.soapclient.php,v 1.69 2010/04/26 20:15:08 snichol Exp $
+* @version  $Id: class.soapclient.php,v 1.72 2010/06/19 13:10:14 snichol Exp $
 * @access   public
 */
 class nusoap_client extends nusoap_base  {
@@ -150,7 +150,7 @@ class nusoap_client extends nusoap_base  {
 	* @param	mixed $headers optional string of XML with SOAP header content, or array of soapval objects for SOAP headers, or associative array
 	* @param	boolean $rpcParams optional (no longer used)
 	* @param	string	$style optional (rpc|document) the style to use when serializing parameters (WSDL can override)
-	* @param	string	$use optional (encoded|literal|literal wrapped) the use when serializing parameters (WSDL can override)
+	* @param	string	$use optional (encoded|literal) the use when serializing parameters (WSDL can override)
 	* @return	mixed	response from SOAP call, normally an associative array mirroring the structure of the XML response, false for certain fatal errors
 	* @access   public
 	*/
@@ -205,7 +205,7 @@ class nusoap_client extends nusoap_base  {
 				$payload = $params;
 			} elseif (is_array($params)) {
 				$this->debug("serializing param array for WSDL operation $operation");
-				$payload = $this->wsdl->serializeRPCParameters($operation,'input',$params,$this->bindingType);
+				$payload = $this->wsdl->serializeRPCParameters($operation,'input',$params,$this->bindingType,$this->portName);
 			} else {
 				$this->debug('params must be array or string');
 				$this->setError('params must be array or string');
@@ -228,8 +228,12 @@ class nusoap_client extends nusoap_base  {
 			// operation not in WSDL
 			$this->appendDebug($this->wsdl->getDebug());
 			$this->wsdl->clearDebug();
-			$this->setError('operation '.$operation.' not present in WSDL.');
-			$this->debug("operation '$operation' not present in WSDL.");
+			$errstr = 'operation '.$operation.' not present in WSDL';
+			if ($this->portName != '') {
+				$errstr .= ' for port ' . $this->portName;
+			}
+			$this->setError($errstr);
+			$this->debug($errstr);
 			return false;
 		} else {
 			// no WSDL
@@ -237,15 +241,6 @@ class nusoap_client extends nusoap_base  {
 			$nsPrefix = 'ns' . rand(1000, 9999);
 			// serialize 
 			$payload = '';
-			if ($use = 'literal wrapped') {
-			// 'literal wrapped' is only sensible (and defined) for 'document'.
-				if ($style == 'document') {
-					$usewrapped = TRUE;
-				}
-				// For compatibility with the rest of the code:
-				$use = 'literal';
-			}
-
 			if (is_string($params)) {
 				$this->debug("serializing param string for operation $operation");
 				$payload = $params;
@@ -264,18 +259,6 @@ class nusoap_client extends nusoap_base  {
 				$encodingStyle = 'http://schemas.xmlsoap.org/soap/encoding/';
 			} else {
 				$encodingStyle = '';
-			}
-		}
-		// wrap document/literal wrapped calls with operation element
-		if (!empty($usewrapped)) {
-			// (This code block was based on http://www.ibm.com/developerworks/webservices/library/ws-whichwsdl/
-			// and tailored to the needs of one specific SOAP server, where no nsPrefix was seen...
-			$this->debug("wrapping document request with literal method element");
-			if ($namespace) {
-				$payload = "<$operation xmlns=\"$namespace\">" .
-					$payload . "</$operation>";
-			} else {
-				$payload = "<$operation>" . $payload . "</$operation>";
 			}
 		}
 		// wrap RPC calls with method element
@@ -398,6 +381,7 @@ class nusoap_client extends nusoap_base  {
 		$this->debug('instantiating wsdl class with doc: '.$this->wsdlFile);
 		$this->wsdl = new wsdl('',$this->proxyhost,$this->proxyport,$this->proxyusername,$this->proxypassword,$this->timeout,$this->response_timeout,$this->curl_options,$this->use_curl);
 		$this->wsdl->setCredentials($this->username, $this->password, $this->authtype, $this->certRequest);
+		$this->wsdl->charencoding = $this->charencoding;
 		$this->wsdl->fetchWSDL($this->wsdlFile);
 		$this->checkWSDL();
 	}
@@ -640,7 +624,7 @@ class nusoap_client extends nusoap_base  {
 	*
 	* @param    string $username
 	* @param    string $password
-	* @param	string $authtype (basic|digest|certificate|ntlm)
+	* @param	string $authtype (basic|digest|certificate|ntlm|any)
 	* @param	array $certRequest (keys must be cainfofile (optional), sslcertfile, sslkeyfile, passphrase, verifypeer (optional), verifyhost (optional): see corresponding options in cURL docs)
 	* @access   public
 	*/

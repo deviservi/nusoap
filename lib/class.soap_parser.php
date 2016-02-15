@@ -9,7 +9,7 @@
 *
 * @author   Dietrich Ayala <dietrich@ganx4.com>
 * @author   Scott Nichol <snichol@users.sourceforge.net>
-* @version  $Id: class.soap_parser.php,v 1.42 2010/04/26 20:15:08 snichol Exp $
+* @version  $Id: class.soap_parser.php,v 1.43 2010/05/26 13:30:41 snichol Exp $
 * @access   public
 */
 class nusoap_parser extends nusoap_base {
@@ -85,9 +85,12 @@ class nusoap_parser extends nusoap_base {
 					}
 				} else {
 					$this->debug('No encoding specified in XML declaration');
+					$pos_end = strpos($xml, '?>', $pos_xml + 2);
+					$xml = substr($xml, 0, $pos_end)  . " encoding=\"$encoding\"" . substr($xml, $pos_end);
 				}
 			} else {
 				$this->debug('No XML declaration');
+				$xml = "<?xml version=\"1.0\" encoding=\"$encoding\"?>" . $xml;
 			}
 			$this->debug('Entering nusoap_parser(), length='.strlen($xml).', encoding='.$encoding);
 			// Create an XML parser - why not xml_parser_create_ns?

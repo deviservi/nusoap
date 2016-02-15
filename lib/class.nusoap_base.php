@@ -1,7 +1,7 @@
 <?php
 
 /*
-$Id: class.nusoap_base.php,v 1.56 2010/04/26 20:15:08 snichol Exp $
+$Id: class.nusoap_base.php,v 1.58 2011/02/28 18:06:39 snichol Exp $
 
 NuSOAP - Web Services Toolkit for PHP
 
@@ -71,7 +71,7 @@ require_once('class.soap_server.php');*/
 
 // class variable emulation
 // cf. http://www.webkreator.com/php/techniques/php-static-class-variables.html
-$GLOBALS['_transient']['static']['nusoap_base']['globalDebugLevel'] = 9;
+$GLOBALS['_transient']['static']['nusoap_base']['globalDebugLevel'] = 0;
 
 /**
 *
@@ -79,7 +79,7 @@ $GLOBALS['_transient']['static']['nusoap_base']['globalDebugLevel'] = 9;
 *
 * @author   Dietrich Ayala <dietrich@ganx4.com>
 * @author   Scott Nichol <snichol@users.sourceforge.net>
-* @version  $Id: class.nusoap_base.php,v 1.56 2010/04/26 20:15:08 snichol Exp $
+* @version  $Id: class.nusoap_base.php,v 1.58 2011/02/28 18:06:39 snichol Exp $
 * @access   public
 */
 class nusoap_base {
@@ -96,14 +96,14 @@ class nusoap_base {
 	 * @var string
 	 * @access private
 	 */
-	var $version = '0.9.6';
+	var $version = '0.9.6dev';
 	/**
 	 * CVS revision for HTTP headers.
 	 *
 	 * @var string
 	 * @access private
 	 */
-	var $revision = '$Revision: 1.57 $';
+	var $revision = '$Revision: 1.58 $';
     /**
      * Current error string (manipulated by getError/setError)
 	 *
@@ -148,8 +148,8 @@ class nusoap_base {
 	* @var      string
 	* @access   public
 	*/
-    var $soap_defencoding = 'ISO-8859-1';
-	//var $soap_defencoding = 'UTF-8';
+	//var $soap_defencoding = 'ISO-8859-1';
+	var $soap_defencoding = 'UTF-8';
 
 	/**
 	* namespaces in an array of prefix => uri
@@ -450,7 +450,7 @@ class nusoap_base {
 		if (is_null($val)) {
     		$this->debug("serialize_val: serialize null");
 			if ($use == 'literal') {
-				// TODO: depends on minOccurs
+				// TODO: depends on minOccurs, nillable
 				$xml = "<$name$xmlns$atts/>";
 				$this->debug("serialize_val returning $xml");
 	        	return $xml;
@@ -902,6 +902,10 @@ class nusoap_base {
 * @access   public
 */
 function timestamp_to_iso8601($timestamp,$utc=true){
+	if ($utc) {
+		return gmdate("Y-m-d\TH:i:s\Z", $timestamp);
+	}
+
 	$datestr = date('Y-m-d\TH:i:sO',$timestamp);
 	$pos = strrpos($datestr, "+");
 	if ($pos === FALSE) {
@@ -912,25 +916,7 @@ function timestamp_to_iso8601($timestamp,$utc=true){
 			$datestr = substr($datestr, 0, $pos + 3) . ':' . substr($datestr, -2);
 		}
 	}
-	if($utc){
-		$pattern = '/'.
-		'([0-9]{4})-'.	// centuries & years CCYY-
-		'([0-9]{2})-'.	// months MM-
-		'([0-9]{2})'.	// days DD
-		'T'.			// separator T
-		'([0-9]{2}):'.	// hours hh:
-		'([0-9]{2}):'.	// minutes mm:
-		'([0-9]{2})(\.[0-9]*)?'. // seconds ss.ss...
-		'(Z|[+\-][0-9]{2}:?[0-9]{2})?'. // Z to indicate UTC, -/+HH:MM:SS.SS... for local tz's
-		'/';
-
-		if(preg_match($pattern,$datestr,$regs)){
-			return sprintf('%04d-%02d-%02dT%02d:%02d:%02dZ',$regs[1],$regs[2],$regs[3],$regs[4],$regs[5],$regs[6]);
-		}
-		return false;
-	} else {
-		return $datestr;
-	}
+	return $datestr;
 }
 
 /**
