@@ -1,5 +1,5 @@
 {
-    "name": "deviservi/nusoap",
+    "name": "remitly/nusoap",
     "type": "library",
     "description": "NuSOAP PHP library re-packaged for Packagist/Composer",
     "keywords": ["soap","nusoap"],
